@@ -3,6 +3,8 @@
 *.dll
 *.so
 *.dylib
+debug
+npm-debug.log
 
 # Test binary, build with `go test -c`
 *.test
