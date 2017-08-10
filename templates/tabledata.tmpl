@@ -17,7 +17,9 @@
                 </ul>
             </div>
             <div class="col-md-9">
-                <h4>{{.tablename}}</h4>
+                <h4>New {{.tablename}}</h4>
+
+                <a href="/addnewdata?name={{.tablename}}" class="btn btn-primary">Add New</a>
 
                 <table class="table">
                     <thead>
@@ -25,6 +27,8 @@
                             {{range .cols}}
                             <th>{{.}}</th>
                             {{end}}
+                            <th>Edit</th>
+                            <th>Delete</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -33,6 +37,8 @@
                             {{range .S}}
                             <td>{{.}}</td>
                             {{end}}
+                            <td><button class="btn btn-primary btn-xs" data-title="Edit" data-toggle="modal" data-target="#edit" ><span class="glyphicon glyphicon-pencil"></span></button></td>
+                            <td><button class="btn btn-danger btn-xs" data-title="Delete" data-toggle="modal" data-target="#delete" ><span class="glyphicon glyphicon-trash"></span></button></td>
                         </tr>
                         {{end}}
                     </tbody>
