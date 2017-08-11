@@ -132,6 +132,78 @@ func main() {
 		})
 	})
 
+	router.POST("/addnewdata", func(c *gin.Context) {
+		c.Request.ParseForm()
+
+		tablename := c.PostForm("name") // shortcut for c.Request.URL.Query().Get("lastname")
+		message := c.PostForm("message")
+		fields := c.Request.Form["fields"]
+
+		queryStr := "SELECT column_name, extra from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		// query show tables
+		tablecols, err := db.Query(queryStr)
+		checkErr(err)
+
+		var mycols = make([]colmeta, 0)
+
+		colstr := "("
+
+		for tablecols.Next() {
+			var column_name string
+			var extra string
+			var ai bool
+			err = tablecols.Scan(&column_name, &extra)
+			checkErr(err)
+
+			fmt.Println("extra ne olaki:", extra)
+
+			if strings.HasPrefix(extra, "auto_increment") {
+				fmt.Println("ai true")
+				ai = true
+			} else {
+				fmt.Println("ai false")
+				ai = false
+			}
+
+			//fmt.Print(column_name)
+			//fmt.Print(" ")
+			var cmeta = colmeta{ai, column_name}
+			mycols = append(mycols, cmeta)
+
+			if column_name != "id" {
+				colstr = colstr + column_name + ","
+			}
+		}
+
+		colstr = strings.TrimSuffix(colstr, ",") + ")"
+
+		insertStr := "insert into " + tablename + " " + colstr + " values ('" + strings.Join(fields[:], "','") + "')"
+
+		// insert
+		stmt, err := db.Prepare(insertStr)
+		checkErr(err)
+
+		res, err := stmt.Exec()
+		checkErr(err)
+
+		id, err := res.LastInsertId()
+		checkErr(err)
+
+		fmt.Println(id)
+
+		c.HTML(http.StatusOK, "addnewdata.tmpl", gin.H{
+			"status":    "posted",
+			"message":   message,
+			"title":     "Dash Db",
+			"test":      "test",
+			"tablename": tablename,
+			"cols":      mycols,
+			"fields":    fields,
+			"tables":    myslice,
+		})
+	})
+
 	router.GET("/tabledata", func(c *gin.Context) {
 		tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
 
