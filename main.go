@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -21,12 +22,14 @@ func checkErr(err error) {
 }
 
 type datarow struct {
-	S []interface{}
+	Id int64
+	S  []interface{}
 }
 
 type colmeta struct {
-	Ai   bool
-	Name string
+	Ai    bool
+	Name  string
+	Value string
 }
 
 func main() {
@@ -119,7 +122,7 @@ func main() {
 
 			//fmt.Print(column_name)
 			//fmt.Print(" ")
-			var cmeta = colmeta{ai, column_name}
+			var cmeta = colmeta{ai, column_name, ""}
 			mycols = append(mycols, cmeta)
 		}
 
@@ -168,7 +171,7 @@ func main() {
 
 			//fmt.Print(column_name)
 			//fmt.Print(" ")
-			var cmeta = colmeta{ai, column_name}
+			var cmeta = colmeta{ai, column_name, ""}
 			mycols = append(mycols, cmeta)
 
 			if column_name != "id" {
@@ -204,6 +207,133 @@ func main() {
 		})
 	})
 
+	router.GET("/editdata", func(c *gin.Context) {
+		tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
+		id := c.Query("id")
+
+		var countofcols int
+		var queryCountStr string
+
+		queryCountStr = "SELECT count(*) from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		countrows, counterr := db.Query(queryCountStr)
+		checkErr(counterr)
+		countrows.Scan(&countofcols)
+
+		queryStr := "SELECT column_name, extra from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		// query show tables
+		tablecols, err := db.Query(queryStr)
+		checkErr(err)
+
+		var mycols = make([]colmeta, 0)
+
+		// valueQuery := "SELECT * from " + tablename + " where id = " + id
+		// // query show tables
+		// vals, err := db.Query(valueQuery)
+		// checkErr(err)
+
+		// var myvals = make([]string, 0)
+
+		// for vals.Next() {
+		// 	var curvalue string
+		// 	err = vals.Scan(&curvalue)
+		// 	checkErr(err)
+
+		// 	myvals = append(myvals, curvalue)
+		// }
+
+		queryDataStr := "SELECT * from " + tablename + " where id = " + id
+		dataRows, err := db.Query(queryDataStr)
+		checkErr(err)
+
+		columns, _ := dataRows.Columns()
+		count := len(columns)
+		values := make([]interface{}, count)
+		valuePtrs := make([]interface{}, count)
+
+		var mydatas = make([]datarow, 0)
+
+		var valuesStr = make([]interface{}, 0)
+
+		for dataRows.Next() {
+
+			for i := range columns {
+				valuePtrs[i] = &values[i]
+			}
+
+			var curid int64
+
+			dataRows.Scan(valuePtrs...)
+
+			for i, col := range columns {
+
+				var v interface{}
+
+				val := values[i]
+
+				b, ok := val.([]byte)
+
+				if ok {
+					v = string(b)
+				} else {
+					v = val
+				}
+
+				fmt.Println("valvecol degerleri", i, col, v, b, val, valuePtrs, values)
+
+				if col == "id" {
+					curids := v.(string)
+					curid, err = strconv.ParseInt(curids, 10, 64)
+					checkErr(err)
+				}
+
+				valuesStr = append(valuesStr, v)
+			}
+
+			var drow = datarow{curid, valuesStr}
+
+			mydatas = append(mydatas, drow)
+
+			break
+		}
+
+		indx := 0
+
+		for tablecols.Next() {
+			var columnName string
+			var extra string
+			var ai bool
+			err = tablecols.Scan(&columnName, &extra)
+			checkErr(err)
+
+			fmt.Println("extra ne olaki:", extra)
+
+			if strings.HasPrefix(extra, "auto_increment") {
+				fmt.Println("ai true")
+				ai = true
+			} else {
+				fmt.Println("ai false")
+				ai = false
+			}
+
+			var ivalue = valuesStr[indx].(string)
+
+			var cmeta = colmeta{ai, columnName, ivalue}
+			mycols = append(mycols, cmeta)
+
+			indx++
+		}
+
+		c.HTML(http.StatusOK, "editdata.tmpl", gin.H{
+			"title":     "Dash Db",
+			"test":      "test",
+			"tablename": tablename,
+			"cols":      mycols,
+			"tables":    myslice,
+		})
+	})
+
 	router.GET("/tabledata", func(c *gin.Context) {
 		tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
 
@@ -228,8 +358,6 @@ func main() {
 			var column_name string
 			err = tablecols.Scan(&column_name)
 			checkErr(err)
-			//fmt.Print(column_name)
-			//fmt.Print(" ")
 			mycols = append(mycols, column_name)
 		}
 
@@ -254,6 +382,8 @@ func main() {
 				valuePtrs[i] = &values[i]
 			}
 
+			var curid int64
+
 			dataRows.Scan(valuePtrs...)
 
 			for i, col := range columns {
@@ -272,10 +402,16 @@ func main() {
 
 				fmt.Println("valvecol degerleri", i, col, v, b, val, valuePtrs, values)
 
+				if col == "id" {
+					curids := v.(string)
+					curid, err = strconv.ParseInt(curids, 10, 64)
+					checkErr(err)
+				}
+
 				valuesStr = append(valuesStr, v)
 			}
 
-			var drow = datarow{valuesStr}
+			var drow = datarow{curid, valuesStr}
 
 			mydatas = append(mydatas, drow)
 
