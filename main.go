@@ -228,21 +228,6 @@ func main() {
 
 		var mycols = make([]colmeta, 0)
 
-		// valueQuery := "SELECT * from " + tablename + " where id = " + id
-		// // query show tables
-		// vals, err := db.Query(valueQuery)
-		// checkErr(err)
-
-		// var myvals = make([]string, 0)
-
-		// for vals.Next() {
-		// 	var curvalue string
-		// 	err = vals.Scan(&curvalue)
-		// 	checkErr(err)
-
-		// 	myvals = append(myvals, curvalue)
-		// }
-
 		queryDataStr := "SELECT * from " + tablename + " where id = " + id
 		dataRows, err := db.Query(queryDataStr)
 		checkErr(err)
