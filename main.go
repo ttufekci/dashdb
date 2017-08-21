@@ -83,6 +83,142 @@ func main() {
 		})
 	})
 
+	router.POST("/deletedata", func(c *gin.Context) {
+		c.Request.ParseForm()
+
+		tablename := c.PostForm("name") // shortcut for c.Request.URL.Query().Get("lastname")
+		id := c.PostForm("id")
+
+		deleteStmt := "delete from " + tablename + " where id=?"
+
+		// delete
+		stmt, err := db.Prepare(deleteStmt)
+		checkErr(err)
+
+		res, err := stmt.Exec(id)
+		checkErr(err)
+
+		affect, err := res.RowsAffected()
+		checkErr(err)
+
+		fmt.Println(affect)
+
+		c.Redirect(http.StatusMovedPermanently, "/tabledata?name="+tablename)
+	})
+
+	router.GET("/deletedata", func(c *gin.Context) {
+		tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
+		id := c.Query("id")
+
+		var countofcols int
+		var queryCountStr string
+
+		queryCountStr = "SELECT count(*) from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		countrows, counterr := db.Query(queryCountStr)
+		checkErr(counterr)
+		countrows.Scan(&countofcols)
+
+		queryStr := "SELECT column_name, extra from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		// query show tables
+		tablecols, err := db.Query(queryStr)
+		checkErr(err)
+
+		var mycols = make([]colmeta, 0)
+
+		queryDataStr := "SELECT * from " + tablename + " where id = " + id
+		dataRows, err := db.Query(queryDataStr)
+		checkErr(err)
+
+		columns, _ := dataRows.Columns()
+		count := len(columns)
+		values := make([]interface{}, count)
+		valuePtrs := make([]interface{}, count)
+
+		var mydatas = make([]datarow, 0)
+
+		var valuesStr = make([]interface{}, 0)
+
+		for dataRows.Next() {
+
+			for i := range columns {
+				valuePtrs[i] = &values[i]
+			}
+
+			var curid int64
+
+			dataRows.Scan(valuePtrs...)
+
+			for i, col := range columns {
+
+				var v interface{}
+
+				val := values[i]
+
+				b, ok := val.([]byte)
+
+				if ok {
+					v = string(b)
+				} else {
+					v = val
+				}
+
+				fmt.Println("valvecol degerleri", i, col, v, b, val, valuePtrs, values)
+
+				if col == "id" {
+					curids := v.(string)
+					curid, err = strconv.ParseInt(curids, 10, 64)
+					checkErr(err)
+				}
+
+				valuesStr = append(valuesStr, v)
+			}
+
+			var drow = datarow{curid, valuesStr}
+
+			mydatas = append(mydatas, drow)
+
+			break
+		}
+
+		indx := 0
+
+		for tablecols.Next() {
+			var columnName string
+			var extra string
+			var ai bool
+			err = tablecols.Scan(&columnName, &extra)
+			checkErr(err)
+
+			fmt.Println("extra ne olaki:", extra)
+
+			if strings.HasPrefix(extra, "auto_increment") {
+				fmt.Println("ai true")
+				ai = true
+			} else {
+				fmt.Println("ai false")
+				ai = false
+			}
+
+			var ivalue = valuesStr[indx].(string)
+
+			var cmeta = colmeta{ai, columnName, ivalue}
+			mycols = append(mycols, cmeta)
+
+			indx++
+		}
+
+		c.HTML(http.StatusOK, "deletedata.tmpl", gin.H{
+			"title":     "Dash Db",
+			"test":      "test",
+			"tablename": tablename,
+			"cols":      mycols,
+			"tables":    myslice,
+			"id":        id,
+		})
+	})
+
 	router.GET("/addnewdata", func(c *gin.Context) {
 		tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
 
@@ -207,6 +343,86 @@ func main() {
 		})
 	})
 
+	router.POST("/editdata", func(c *gin.Context) {
+		c.Request.ParseForm()
+
+		tablename := c.PostForm("name") // shortcut for c.Request.URL.Query().Get("lastname")
+		fields := c.Request.Form["fields"]
+		id := c.PostForm("id")
+
+		queryStr := "SELECT column_name, extra from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		// query show tables
+		tablecols, err := db.Query(queryStr)
+		checkErr(err)
+
+		var mycols = make([]colmeta, 0)
+
+		colstr := "set "
+
+		indx := 0
+
+		fmt.Println("fields:", strings.Join(fields[:], "','"))
+
+		fmt.Println("fields[0]", fields[0])
+
+		for tablecols.Next() {
+			var column_name string
+			var extra string
+			var ai bool
+			err = tablecols.Scan(&column_name, &extra)
+			checkErr(err)
+
+			fmt.Println("extra ne olaki:", extra)
+
+			if strings.HasPrefix(extra, "auto_increment") {
+				fmt.Println("ai true")
+				ai = true
+			} else {
+				fmt.Println("ai false")
+				ai = false
+			}
+
+			var cmeta = colmeta{ai, column_name, ""}
+			mycols = append(mycols, cmeta)
+
+			fmt.Println("indx", indx, "fields:", fields[indx])
+
+			columnValue := fields[indx]
+
+			if column_name != "id" {
+				colstr = colstr + column_name + "='" + columnValue + "',"
+				indx++
+			}
+		}
+
+		colstr = strings.TrimSuffix(colstr, ",")
+
+		updateStr := "update " + tablename + " " + colstr + " " + "where id=" + id
+
+		fmt.Println("updatestr:", updateStr)
+
+		// update
+		stmt, err := db.Prepare(updateStr)
+		checkErr(err)
+
+		res, err := stmt.Exec()
+		checkErr(err)
+
+		affect, err := res.RowsAffected()
+		checkErr(err)
+
+		fmt.Println(affect)
+
+		c.HTML(http.StatusOK, "editdata.tmpl", gin.H{
+			"title":     "Dash Db",
+			"test":      "test",
+			"tablename": tablename,
+			"cols":      mycols,
+			"tables":    myslice,
+		})
+	})
+
 	router.GET("/editdata", func(c *gin.Context) {
 		tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
 		id := c.Query("id")
@@ -316,6 +532,7 @@ func main() {
 			"tablename": tablename,
 			"cols":      mycols,
 			"tables":    myslice,
+			"id":        id,
 		})
 	})
 

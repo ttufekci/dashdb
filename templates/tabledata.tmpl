@@ -40,7 +40,7 @@
                             <td>{{.}}</td>
                             {{end}}
                             <td><a href="/editdata?name={{$tablename}}&id={{$id}}" class="btn btn-primary btn-xs" data-title="Edit" data-toggle="modal" data-target="#edit" ><span class="glyphicon glyphicon-pencil"></span></a></td>
-                            <td><button class="btn btn-danger btn-xs" data-title="Delete" data-toggle="modal" data-target="#delete" ><span class="glyphicon glyphicon-trash"></span></button></td>
+                            <td><a href="/deletedata?name={{$tablename}}&id={{$id}}" class="btn btn-danger btn-xs" data-title="Delete" data-toggle="modal" data-target="#delete" ><span class="glyphicon glyphicon-trash"></span></a></td>
                         </tr>
                         {{end}}
                     </tbody>

@@ -17,9 +17,9 @@
                 </ul>
             </div>
             <div class="col-md-9">
-                <h4>Edit data</h4>
+                <h4>Delete data</h4>
                 <br/>
-                <form action="/editdata" method="post">
+                <form action="/deletedata" method="post">
                     <table class="table">
                         <tbody>
                             {{range .cols}}
@@ -32,12 +32,12 @@
                                 {{else}}
                                     <td>{{.Name}}</td>
                                     <td>                            
-                                        <input type="text" name="fields" value="{{.Value}}"/>
+                                        <input type="text" name="fields" value="{{.Value}}" disabled/>
                                     </td>
                                 {{end}}                            
                             </tr>
                             {{end}}                        
-                            <tr><td><button class="btn btn-default" type="submit">Save</button></td><td></td></tr>
+                            <tr><td><button class="btn btn-default" type="submit">Delete</button></td><td></td></tr>
                         </tbody>
                     </table>
                     <input type="hidden" name="name" value="{{.tablename}}" />
