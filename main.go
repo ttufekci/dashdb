@@ -30,6 +30,7 @@ type colmeta struct {
 	Ai    bool
 	Name  string
 	Value string
+	Prim  bool
 }
 
 func main() {
@@ -41,6 +42,8 @@ func main() {
 
 	countrows, counterr := db.Query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'dashdb'")
 	checkErr(counterr)
+
+	fmt.Println("test")
 
 	countrows.Scan(&countofrows)
 
@@ -70,7 +73,7 @@ func main() {
 	// This handler will match /user/john but will not match neither /user/ or /user
 	router.GET("/user/:name", func(c *gin.Context) {
 		name := c.Param("name")
-		c.String(http.StatusOK, "Hello %s", name)
+		c.String(http.StatusOK, "Hello my friend_t2 %s", name)
 	})
 
 	router.LoadHTMLGlob("templates/*")
@@ -119,7 +122,7 @@ func main() {
 		checkErr(counterr)
 		countrows.Scan(&countofcols)
 
-		queryStr := "SELECT column_name, extra from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
 
 		// query show tables
 		tablecols, err := db.Query(queryStr)
@@ -187,8 +190,10 @@ func main() {
 		for tablecols.Next() {
 			var columnName string
 			var extra string
+			var column_key string
 			var ai bool
-			err = tablecols.Scan(&columnName, &extra)
+			var prim bool
+			err = tablecols.Scan(&columnName, &extra, &column_key)
 			checkErr(err)
 
 			fmt.Println("extra ne olaki:", extra)
@@ -201,9 +206,17 @@ func main() {
 				ai = false
 			}
 
+			if strings.HasPrefix(extra, "PRI") {
+				fmt.Println("prim true")
+				prim = true
+			} else {
+				fmt.Println("prim false")
+				prim = false
+			}
+
 			var ivalue = valuesStr[indx].(string)
 
-			var cmeta = colmeta{ai, columnName, ivalue}
+			var cmeta = colmeta{ai, columnName, ivalue, prim}
 			mycols = append(mycols, cmeta)
 
 			indx++
@@ -219,6 +232,49 @@ func main() {
 		})
 	})
 
+	// function LoadColMetadata(tablename string) []colmeta {
+	// 	queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+	// 	// query show tables
+	// 	tablecols, err := db.Query(queryStr)
+	// 	checkErr(err)
+
+	// 	var mycols = make([]colmeta, 0)
+
+	// 	for tablecols.Next() {
+	// 		var column_name string
+	// 		var extra string
+	// 		var ai bool
+	// 		var prim bool
+	// 		var column_key string
+	// 		err = tablecols.Scan(&column_name, &extra, &column_key)
+	// 		checkErr(err)
+
+	// 		fmt.Println("extra ne olaki:", extra)
+
+	// 		if strings.HasPrefix(extra, "auto_increment") {
+	// 			fmt.Println("ai true")
+	// 			ai = true
+	// 		} else {
+	// 			fmt.Println("ai false")
+	// 			ai = false
+	// 		}
+
+	// 		if strings.HasPrefix(column_key, "PRI") {
+	// 			fmt.Println("prim true")
+	// 			prim = true
+	// 		} else {
+	// 			fmt.Println("prim false")
+	// 			prim = false
+	// 		}
+
+	// 		var cmeta = colmeta{ai, column_name, "", prim}
+	// 		mycols = append(mycols, cmeta)
+	// 	}
+
+	// 	return mycols
+	// }
+
 	router.GET("/addnewdata", func(c *gin.Context) {
 		tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
 
@@ -231,7 +287,7 @@ func main() {
 		checkErr(counterr)
 		countrows.Scan(&countofcols)
 
-		queryStr := "SELECT column_name, extra from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
 
 		// query show tables
 		tablecols, err := db.Query(queryStr)
@@ -243,7 +299,9 @@ func main() {
 			var column_name string
 			var extra string
 			var ai bool
-			err = tablecols.Scan(&column_name, &extra)
+			var prim bool
+			var column_key string
+			err = tablecols.Scan(&column_name, &extra, &column_key)
 			checkErr(err)
 
 			fmt.Println("extra ne olaki:", extra)
@@ -256,9 +314,15 @@ func main() {
 				ai = false
 			}
 
-			//fmt.Print(column_name)
-			//fmt.Print(" ")
-			var cmeta = colmeta{ai, column_name, ""}
+			if strings.HasPrefix(column_key, "PRI") {
+				fmt.Println("prim true")
+				prim = true
+			} else {
+				fmt.Println("prim false")
+				prim = false
+			}
+
+			var cmeta = colmeta{ai, column_name, "", prim}
 			mycols = append(mycols, cmeta)
 		}
 
@@ -278,7 +342,7 @@ func main() {
 		message := c.PostForm("message")
 		fields := c.Request.Form["fields"]
 
-		queryStr := "SELECT column_name, extra from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
 
 		// query show tables
 		tablecols, err := db.Query(queryStr)
@@ -292,7 +356,9 @@ func main() {
 			var column_name string
 			var extra string
 			var ai bool
-			err = tablecols.Scan(&column_name, &extra)
+			var prim bool
+			var column_key string
+			err = tablecols.Scan(&column_name, &extra, &column_key)
 			checkErr(err)
 
 			fmt.Println("extra ne olaki:", extra)
@@ -305,9 +371,17 @@ func main() {
 				ai = false
 			}
 
+			if strings.HasPrefix(extra, "PRI") {
+				fmt.Println("prim true")
+				prim = true
+			} else {
+				fmt.Println("prim false")
+				prim = false
+			}
+
 			//fmt.Print(column_name)
 			//fmt.Print(" ")
-			var cmeta = colmeta{ai, column_name, ""}
+			var cmeta = colmeta{ai, column_name, "", prim}
 			mycols = append(mycols, cmeta)
 
 			if column_name != "id" {
@@ -350,7 +424,7 @@ func main() {
 		fields := c.Request.Form["fields"]
 		id := c.PostForm("id")
 
-		queryStr := "SELECT column_name, extra from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
 
 		// query show tables
 		tablecols, err := db.Query(queryStr)
@@ -369,8 +443,10 @@ func main() {
 		for tablecols.Next() {
 			var column_name string
 			var extra string
+			var column_key string
 			var ai bool
-			err = tablecols.Scan(&column_name, &extra)
+			var prim bool
+			err = tablecols.Scan(&column_name, &extra, &column_key)
 			checkErr(err)
 
 			fmt.Println("extra ne olaki:", extra)
@@ -383,7 +459,15 @@ func main() {
 				ai = false
 			}
 
-			var cmeta = colmeta{ai, column_name, ""}
+			if strings.HasPrefix(column_key, "PRI") {
+				fmt.Println("prim true")
+				prim = true
+			} else {
+				fmt.Println("prim false")
+				prim = false
+			}
+
+			var cmeta = colmeta{ai, column_name, "", prim}
 			mycols = append(mycols, cmeta)
 
 			fmt.Println("indx", indx, "fields:", fields[indx])
@@ -504,8 +588,10 @@ func main() {
 		for tablecols.Next() {
 			var columnName string
 			var extra string
+			var column_key string
 			var ai bool
-			err = tablecols.Scan(&columnName, &extra)
+			var prim bool
+			err = tablecols.Scan(&columnName, &extra, &column_key)
 			checkErr(err)
 
 			fmt.Println("extra ne olaki:", extra)
@@ -518,9 +604,17 @@ func main() {
 				ai = false
 			}
 
+			if strings.HasPrefix(column_key, "PRI") {
+				fmt.Println("prim true")
+				prim = true
+			} else {
+				fmt.Println("prim false")
+				prim = false
+			}
+
 			var ivalue = valuesStr[indx].(string)
 
-			var cmeta = colmeta{ai, columnName, ivalue}
+			var cmeta = colmeta{ai, columnName, ivalue, prim}
 			mycols = append(mycols, cmeta)
 
 			indx++
@@ -548,19 +642,45 @@ func main() {
 		checkErr(counterr)
 		countrows.Scan(&countofcols)
 
-		queryStr := "SELECT column_name from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
 
 		// query show tables
 		tablecols, err := db.Query(queryStr)
 		checkErr(err)
 
-		var mycols = make([]string, countofcols)
+		// var mycols = make([]string, countofcols)
+
+		var mycols = make([]colmeta, 0)
 
 		for tablecols.Next() {
 			var column_name string
-			err = tablecols.Scan(&column_name)
+			var extra string
+			var column_key string
+			var ai bool
+			var prim bool
+			err = tablecols.Scan(&column_name, &extra, &column_key)
 			checkErr(err)
-			mycols = append(mycols, column_name)
+
+			fmt.Println("extra ne olaki:", extra)
+
+			if strings.HasPrefix(extra, "auto_increment") {
+				fmt.Println("ai true")
+				ai = true
+			} else {
+				fmt.Println("ai false")
+				ai = false
+			}
+
+			if strings.HasPrefix(column_key, "PRI") {
+				fmt.Println("prim true")
+				prim = true
+			} else {
+				fmt.Println("prim false")
+				prim = false
+			}
+
+			var cmeta = colmeta{ai, column_name, "", prim}
+			mycols = append(mycols, cmeta)
 		}
 
 		queryDataStr := "SELECT * from " + tablename
@@ -580,7 +700,7 @@ func main() {
 
 			var valuesStr = make([]interface{}, 0)
 
-			for i, _ := range columns {
+			for i := range columns {
 				valuePtrs[i] = &values[i]
 			}
 
@@ -629,9 +749,6 @@ func main() {
 			"datas":     mydatas,
 		})
 	})
-
-	//http.HandleFunc("/", handler)
-	//http.ListenAndServe(":8080", nil)
 
 	// By default it serves on :8080 unless a
 	// PORT environment variable was defined.

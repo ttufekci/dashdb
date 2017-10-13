@@ -23,14 +23,16 @@
                     <table class="table">
                         <tbody>
                             {{range .cols}}
-                            <tr>
+                            <tr>             
+                                {{$prim := .Prim}}                   
                                 {{if .Ai}}
-                                    <td>{{.Name}} (auto increment)</td>
+                                    <td>{{.Name}} (auto increment) (primary {{$prim}})
+                                    </td>                                  
                                     <td>                            
                                         <input type="text" name="fields" disabled/>
                                     </td>
                                 {{else}}
-                                    <td>{{.Name}}</td>
+                                    <td>{{.Name}}  (primary {{$prim}})</td>
                                     <td>                            
                                         <input type="text" name="fields"/>
                                     </td>
