@@ -17,3 +17,10 @@ CREATE TABLE `testtbl` (
   `name` varchar(45) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
+
+CREATE TABLE `prim2tbl` (
+  `id1` int(11) NOT NULL,
+  `id2` int(11) NOT NULL,
+  `prim2tblcol` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`id1`,`id2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

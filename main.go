@@ -423,6 +423,17 @@ func main() {
 		tablename := c.PostForm("name") // shortcut for c.Request.URL.Query().Get("lastname")
 		fields := c.Request.Form["fields"]
 		id := c.PostForm("id")
+		ids := c.PostForm("ids")
+
+		ids = strings.Replace(ids, "éééé", "", -1)
+
+		ids = strings.Replace(ids, "éé", " and ", -1)
+
+		ids = strings.Replace(ids, "é", " = ", -1)
+
+		fmt.Println("tesssssssssssssst")
+
+		fmt.Println(",ids:", ids, ",id:", id)
 
 		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
 
@@ -482,7 +493,13 @@ func main() {
 
 		colstr = strings.TrimSuffix(colstr, ",")
 
-		updateStr := "update " + tablename + " " + colstr + " " + "where id=" + id
+		var updateStr string
+
+		if id == "0" {
+			updateStr = "update " + tablename + " " + colstr + " " + "where " + ids
+		} else {
+			updateStr = "update " + tablename + " " + colstr + " " + "where id=" + id
+		}
 
 		fmt.Println("updatestr:", updateStr)
 
@@ -510,6 +527,16 @@ func main() {
 	router.GET("/editdata", func(c *gin.Context) {
 		tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
 		id := c.Query("id")
+		primcols := c.Query("primcols")
+		ids := c.Query("ids")
+
+		ids = strings.Replace(ids, "éééé", "", -1)
+
+		ids = strings.Replace(ids, "éé", " and ", -1)
+
+		ids = strings.Replace(ids, "é", " = ", -1)
+
+		fmt.Println("primcols:", primcols, ",ids:", ids, ",id:", id)
 
 		var countofcols int
 		var queryCountStr string
@@ -520,15 +547,25 @@ func main() {
 		checkErr(counterr)
 		countrows.Scan(&countofcols)
 
-		queryStr := "SELECT column_name, extra from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
 
 		// query show tables
 		tablecols, err := db.Query(queryStr)
 		checkErr(err)
 
 		var mycols = make([]colmeta, 0)
+		var queryDataStr string
 
-		queryDataStr := "SELECT * from " + tablename + " where id = " + id
+		if id == "0" {
+			fmt.Println("0")
+			queryDataStr = "SELECT * from " + tablename + " where " + ids
+		} else {
+			fmt.Println("0 degil")
+			queryDataStr = "SELECT * from " + tablename + " where id = " + id
+		}
+
+		fmt.Println("queryDataStr", queryDataStr)
+
 		dataRows, err := db.Query(queryDataStr)
 		checkErr(err)
 
@@ -627,6 +664,7 @@ func main() {
 			"cols":      mycols,
 			"tables":    myslice,
 			"id":        id,
+			"ids":       ids,
 		})
 	})
 
@@ -647,6 +685,29 @@ func main() {
 		// query show tables
 		tablecols, err := db.Query(queryStr)
 		checkErr(err)
+
+		primQueryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and column_key = 'PRI' and table_name='" + tablename + "'"
+
+		// query show tables
+		primarycols, err := db.Query(primQueryStr)
+		checkErr(err)
+
+		primcols := ""
+
+		// sliceprimcols := make([]string, 5)
+
+		primcolsmap := make(map[string]string)
+
+		for primarycols.Next() {
+			var column_name string
+			var extra string
+			var column_key string
+			err = primarycols.Scan(&column_name, &extra, &column_key)
+			checkErr(err)
+			primcols = primcols + column_name + ","
+			// append(sliceprimcols, column_name)
+			primcolsmap[column_name] = ""
+		}
 
 		// var mycols = make([]string, countofcols)
 
@@ -695,6 +756,7 @@ func main() {
 		var mydatas = make([]datarow, 0)
 
 		var indx int
+		// var ids string
 
 		for dataRows.Next() {
 
@@ -730,6 +792,11 @@ func main() {
 					checkErr(err)
 				}
 
+				if _, ok := primcolsmap[col]; ok {
+					//do something here
+					primcolsmap[col] = v.(string)
+				}
+
 				valuesStr = append(valuesStr, v)
 			}
 
@@ -740,13 +807,24 @@ func main() {
 			indx = indx + 1
 		}
 
+		var ids string
+
+		ids = "éé"
+
+		for k, v := range primcolsmap {
+			fmt.Println("k:", k, "v:", v)
+			ids += "éé" + k + "é" + v
+		}
+
 		c.HTML(http.StatusOK, "tabledata.tmpl", gin.H{
 			"title":     "Dash Db",
 			"test":      "test",
 			"tablename": tablename,
+			"primcols":  primcols,
 			"tables":    myslice,
 			"cols":      mycols,
 			"datas":     mydatas,
+			"ids":       ids,
 		})
 	})
 
