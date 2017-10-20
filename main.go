@@ -185,6 +185,8 @@ type colmeta struct {
 	Prim  bool
 }
 
+var db *sql.DB
+
 func main() {
 	// db, err := sql.Open("mysql", "test:test123@/dashdb?charset=utf8")
 	db, err := sql.Open("mysql", "test:test123@/dashdb?charset=utf8")
