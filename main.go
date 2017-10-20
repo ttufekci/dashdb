@@ -15,6 +15,158 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
 }
 
+func replacesc(ids string) string {
+	var newids string
+
+	newids = strings.Replace(ids, "éééé", "", -1)
+
+	newids = strings.Replace(newids, "éé", " and ", -1)
+
+	newids = strings.Replace(newids, "é", " = ", -1)
+
+	return newids
+}
+
+// func editGet(c *gin.Context) {
+// 	tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
+// 	id := c.Query("id")
+// 	primcols := c.Query("primcols")
+// 	ids := c.Query("ids")
+
+// 	ids = replacesc(ids)
+
+// 	fmt.Println("primcols:", primcols, ",ids:", ids, ",id:", id)
+
+// 	var countofcols int
+// 	var queryCountStr string
+
+// 	queryCountStr = "SELECT count(*) from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+// 	countrows, counterr := db.Query(queryCountStr)
+// 	checkErr(counterr)
+// 	countrows.Scan(&countofcols)
+
+// 	queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+// 	// query show tables
+// 	tablecols, err := db.Query(queryStr)
+// 	checkErr(err)
+
+// 	var mycols = make([]colmeta, 0)
+// 	var queryDataStr string
+
+// 	if id == "0" {
+// 		fmt.Println("0")
+// 		queryDataStr = "SELECT * from " + tablename + " where " + ids
+// 	} else {
+// 		fmt.Println("0 degil")
+// 		queryDataStr = "SELECT * from " + tablename + " where id = " + id
+// 	}
+
+// 	fmt.Println("queryDataStr", queryDataStr)
+
+// 	dataRows, err := db.Query(queryDataStr)
+// 	checkErr(err)
+
+// 	columns, _ := dataRows.Columns()
+// 	count := len(columns)
+// 	values := make([]interface{}, count)
+// 	valuePtrs := make([]interface{}, count)
+
+// 	var mydatas = make([]datarow, 0)
+
+// 	var valuesStr = make([]interface{}, 0)
+
+// 	for dataRows.Next() {
+
+// 		for i := range columns {
+// 			valuePtrs[i] = &values[i]
+// 		}
+
+// 		var curid int64
+
+// 		dataRows.Scan(valuePtrs...)
+
+// 		for i, col := range columns {
+
+// 			var v interface{}
+
+// 			val := values[i]
+
+// 			b, ok := val.([]byte)
+
+// 			if ok {
+// 				v = string(b)
+// 			} else {
+// 				v = val
+// 			}
+
+// 			fmt.Println("valvecol degerleri", i, col, v, b, val, valuePtrs, values)
+
+// 			if col == "id" {
+// 				curids := v.(string)
+// 				curid, err = strconv.ParseInt(curids, 10, 64)
+// 				checkErr(err)
+// 			}
+
+// 			valuesStr = append(valuesStr, v)
+// 		}
+
+// 		var drow = datarow{curid, valuesStr}
+
+// 		mydatas = append(mydatas, drow)
+
+// 		break
+// 	}
+
+// 	indx := 0
+
+// 	for tablecols.Next() {
+// 		var columnName string
+// 		var extra string
+// 		var column_key string
+// 		var ai bool
+// 		var prim bool
+// 		err = tablecols.Scan(&columnName, &extra, &column_key)
+// 		checkErr(err)
+
+// 		fmt.Println("extra ne olaki:", extra)
+
+// 		if strings.HasPrefix(extra, "auto_increment") {
+// 			fmt.Println("ai true")
+// 			ai = true
+// 		} else {
+// 			fmt.Println("ai false")
+// 			ai = false
+// 		}
+
+// 		if strings.HasPrefix(column_key, "PRI") {
+// 			fmt.Println("prim true")
+// 			prim = true
+// 		} else {
+// 			fmt.Println("prim false")
+// 			prim = false
+// 		}
+
+// 		var ivalue = valuesStr[indx].(string)
+
+// 		var cmeta = colmeta{ai, columnName, ivalue, prim}
+// 		mycols = append(mycols, cmeta)
+
+// 		indx++
+// 	}
+
+// 	c.HTML(http.StatusOK, "editdata.tmpl", gin.H{
+// 		"title":     "Dash Db",
+// 		"test":      "test",
+// 		"tablename": tablename,
+// 		"cols":      mycols,
+// 		"tables":    myslice,
+// 		"id":        id,
+// 		"ids":       ids,
+// 	})
+// }
+
 func checkErr(err error) {
 	if err != nil {
 		panic(err)
@@ -425,15 +577,9 @@ func main() {
 		id := c.PostForm("id")
 		ids := c.PostForm("ids")
 
-		ids = strings.Replace(ids, "éééé", "", -1)
+		ids = replacesc(ids)
 
-		ids = strings.Replace(ids, "éé", " and ", -1)
-
-		ids = strings.Replace(ids, "é", " = ", -1)
-
-		fmt.Println("tesssssssssssssst")
-
-		fmt.Println(",ids:", ids, ",id:", id)
+		fmt.Println("\nids:", ids, ",id:", id)
 
 		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
 
@@ -530,11 +676,7 @@ func main() {
 		primcols := c.Query("primcols")
 		ids := c.Query("ids")
 
-		ids = strings.Replace(ids, "éééé", "", -1)
-
-		ids = strings.Replace(ids, "éé", " and ", -1)
-
-		ids = strings.Replace(ids, "é", " = ", -1)
+		ids = replacesc(ids)
 
 		fmt.Println("primcols:", primcols, ",ids:", ids, ",id:", id)
 
