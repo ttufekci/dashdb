@@ -11,6 +11,10 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+type Table struct {
+	Name string `json:"name"`
+}
+
 func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
 }
@@ -972,7 +976,22 @@ func main() {
 		})
 	})
 
+	router.GET("/tables", func(c *gin.Context) {
+		myarray := make([]Table, 0)
+		mytable := Table{"table1"}
+		myarray = append(myarray, mytable)
+		mytable = Table{"table2"}
+		myarray = append(myarray, mytable)
+		mytable = Table{"table3"}
+		myarray = append(myarray, mytable)
+
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+
+		c.JSON(200, myarray)
+	})
+
 	// By default it serves on :8080 unless a
 	// PORT environment variable was defined.
-	router.Run()
+	router.Run(":8081")
 }
