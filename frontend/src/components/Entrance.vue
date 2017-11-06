@@ -19,23 +19,24 @@
               <br>
               <div class="form-group">
                 <label for="inputHost">Host</label>
-                <input type="host" class="form-control" id="inputHost" placeholder="Host">
+                <input type="host" class="form-control" id="inputHost" placeholder="Host" v-model="host">
               </div>
               <div class="form-group">
                 <label for="inputSchema">Schema</label>
-                <input type="schema" class="form-control" id="inputSchema" placeholder="Schema">
+                <input type="schema" class="form-control" id="inputSchema" placeholder="Schema" v-model="schema">
               </div>          
               <div class="form-group">
                 <label for="inputUser">User</label>
-                <input type="user" class="form-control" id="inputUser" placeholder="User">
+                <input type="user" class="form-control" id="inputUser" placeholder="User" v-model="user">
               </div>          
               <div class="form-group">
                 <label for="exampleInputPassword1">Password</label>
-                <input type="password" class="form-control" id="exampleInputPassword1" placeholder="Password">
+                <input type="password" class="form-control" id="exampleInputPassword1" placeholder="Password" v-model="password">
               </div>
               <br>
               <button type="submit" class="btn btn-primary">Save</button>
-              <button type="submit" class="btn btn-primary">Test Connection</button>
+              <button type="submit" class="btn btn-primary" v-on:click="testConnection">Test Connection</button>
+              <label class="text-success ml-3">{{testsuccess}}</label>
             </form>        
           </div>
         </div>
@@ -47,11 +48,40 @@
 </template>
 
 <script>
+import axios from 'axios'
+
 export default {
   name: 'Entrance',
   data () {
     return {
-      msg: 'Ready-made Dashboard for your Database'
+      msg: 'Ready-made Dashboard for your Database',
+      errors: [],
+      testsuccess: '',
+      host: '',
+      user: '',
+      password: '',
+      schema: 'dashdb'
+    }
+  },
+  methods: {
+    testConnection () {
+      var setGetParams = 'host=' + this.host + '&user=' + this.user + '&password=' + this.password + '&schema=' + this.schema
+      axios.get('http://localhost:8081/testconnection?' + setGetParams)
+      .then(response => {
+        // JSON responses are automatically parsed.
+        var success = response.data.success
+        if (success === 'true') {
+          this.testsuccess = 'Success'
+        } else {
+          this.testsuccess = 'Fails'
+        }
+        console.log(response)
+        console.log(response.data)
+      })
+      .catch(e => {
+        console.log(e)
+        this.errors.push(e)
+      })
     }
   }
 }
