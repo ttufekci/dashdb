@@ -1,0 +1,7 @@
+# Db config parameters
+
+[database]
+host = "localhost"
+schema = "dashdb"
+user = ""
+password = ""
