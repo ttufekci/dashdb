@@ -1,7 +1,6 @@
-# Db config parameters
 
 [database]
-host = "localhost"
-schema = "dashdb"
-user = ""
-password = ""
+  host = "localhost"
+  password = "test123"
+  schema = "dashdb"
+  user = "test"

@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/spf13/viper"
+	"github.com/theherk/viper"
 )
 
 type config struct {
@@ -862,10 +862,10 @@ SkipDBInit:
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
 
-		// host := c.Query("host")
-		// user := c.Query("user")
-		// password := c.Query("password")
-		// schema := c.Query("schema")
+		host := c.Query("host")
+		user := c.Query("user")
+		password := c.Query("password")
+		schema := c.Query("schema")
 
 		viper.SetConfigName("config") // name of config file (without extension)
 		viper.AddConfigPath(".")      // optionally look for config in the working directory
@@ -879,12 +879,38 @@ SkipDBInit:
 		fmt.Println("database.user", viper.GetString("database.user"))
 		fmt.Println("database.host", viper.GetString("database.host"))
 
-		viper.Set("database.user", "test")
-		viper.SetDefault("database.user", "test2")
+		viper.Set("database.user", user)
+		viper.Set("database.host", host)
+		viper.Set("database.password", password)
+		viper.Set("database.schema", schema)
+
+		viper.WriteConfig()
 
 		c.JSON(200, gin.H{
 			"success": "true",
 			"message": "saved successfully",
+		})
+	})
+
+	router.GET("/readconfig", func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+
+		viper.SetConfigName("config") // name of config file (without extension)
+		viper.AddConfigPath(".")      // optionally look for config in the working directory
+		err := viper.ReadInConfig()   // Find and read the config file
+
+		if err != nil { // Handle errors reading the config file
+			panic(fmt.Errorf("Fatal error config file: %s \n", err))
+		}
+
+		c.JSON(200, gin.H{
+			"success":  "true",
+			"message":  "saved successfully",
+			"user":     viper.GetString("database.user"),
+			"password": viper.GetString("database.password"),
+			"schema":   viper.GetString("database.schema"),
+			"host":     viper.GetString("database.host"),
 		})
 	})
 
