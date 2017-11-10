@@ -35,45 +35,19 @@
         <nav class="col-sm-3 col-md-2 d-none d-sm-block bg-light sidebar">
           <ul class="nav nav-pills flex-column">
             <li class="nav-item">
-              <router-link :to="'overview'" class="nav-link" active-class="active">Overview <span class="sr-only">(current)</span></router-link>                            
+              <router-link :to="{name: 'overview'}" class="nav-link" active-class="active">Overview <span class="sr-only">(current)</span></router-link>                            
             </li>
             <li class="nav-item">
-              <router-link :to="'reports'" active-class="active" class="nav-link">Reports</router-link>              
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#">Analytics</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#">Export</a>
+              <router-link :to="{name: 'reports'}" active-class="active" class="nav-link">Reports</router-link>              
             </li>
           </ul>
 
           <ul class="nav nav-pills flex-column">
-            <li class="nav-item">
-              <a class="nav-link" href="#">Nav item</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#">Nav item again</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#">One more nav</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#">Another nav item</a>
+            <li v-for="item in tablelist" :key="item" class="nav-item">              
+              <router-link :to="{name:'tabledata', params: {name:  item}}" active-class="active" class="nav-link">{{ item }}</router-link>              
             </li>
           </ul>
 
-          <ul class="nav nav-pills flex-column">
-            <li class="nav-item">
-              <a class="nav-link" href="#">Nav item again</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#">One more nav</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#">Another nav item</a>
-            </li>
-          </ul>
         </nav>
 
         <router-view/>
@@ -83,6 +57,7 @@
 </template>
 
 <script>
+import axios from 'axios'
 
 export default {
   name: 'Dashboard',
@@ -94,11 +69,30 @@ export default {
       host: '',
       user: '',
       password: '',
-      schema: 'dashdb'
+      schema: 'dashdb',
+      tablelist: [
+
+      ]
     }
   },
   mounted () {
     // this.$router.push('overview')
+    this.readTableList()
+  },
+  methods: {
+    readTableList () {
+      axios.get('http://localhost:8081/tablelist')
+      .then(response => {
+        // JSON responses are automatically parsed.
+        this.tablelist = response.data
+        console.log(response)
+        console.log(response.data)
+      })
+      .catch(e => {
+        console.log(e)
+        this.errors.push(e)
+      })
+    }
   }
 }
 </script>

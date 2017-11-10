@@ -59,9 +59,11 @@ type colmeta struct {
 
 var db *sql.DB
 
+var tablelist []string
+
 func main() {
 	var countofrows int
-	var myslice []string
+
 	var countrows, rows *sql.Rows
 	var counterr, err error
 
@@ -91,7 +93,7 @@ func main() {
 	rows, err = db.Query("show tables")
 	checkErr(err)
 
-	myslice = make([]string, countofrows)
+	tablelist = make([]string, countofrows)
 
 	for rows.Next() {
 		var name string
@@ -99,7 +101,7 @@ func main() {
 		checkErr(err)
 		fmt.Print(name)
 		fmt.Print(" ")
-		myslice = append(myslice, name)
+		tablelist = append(tablelist, name)
 	}
 
 SkipDBInit:
@@ -124,7 +126,7 @@ SkipDBInit:
 		c.HTML(http.StatusOK, "index.tmpl", gin.H{
 			"title":  "Dash Db",
 			"test":   "test",
-			"tables": myslice,
+			"tables": tablelist,
 		})
 	})
 
@@ -269,7 +271,7 @@ SkipDBInit:
 			"test":      "test",
 			"tablename": tablename,
 			"cols":      mycols,
-			"tables":    myslice,
+			"tables":    tablelist,
 			"id":        id,
 		})
 	})
@@ -330,7 +332,7 @@ SkipDBInit:
 			"test":      "test",
 			"tablename": tablename,
 			"cols":      mycols,
-			"tables":    myslice,
+			"tables":    tablelist,
 		})
 	})
 
@@ -412,7 +414,7 @@ SkipDBInit:
 			"tablename": tablename,
 			"cols":      mycols,
 			"fields":    fields,
-			"tables":    myslice,
+			"tables":    tablelist,
 		})
 	})
 
@@ -513,7 +515,7 @@ SkipDBInit:
 			"test":      "test",
 			"tablename": tablename,
 			"cols":      mycols,
-			"tables":    myslice,
+			"tables":    tablelist,
 		})
 	})
 
@@ -651,7 +653,7 @@ SkipDBInit:
 			"test":      "test",
 			"tablename": tablename,
 			"cols":      mycols,
-			"tables":    myslice,
+			"tables":    tablelist,
 			"id":        id,
 			"ids":       ids,
 		})
@@ -697,8 +699,6 @@ SkipDBInit:
 			// append(sliceprimcols, column_name)
 			primcolsmap[column_name] = ""
 		}
-
-		// var mycols = make([]string, countofcols)
 
 		var mycols = make([]colmeta, 0)
 
@@ -810,7 +810,7 @@ SkipDBInit:
 			"test":      "test",
 			"tablename": tablename,
 			"primcols":  primcols,
-			"tables":    myslice,
+			"tables":    tablelist,
 			"cols":      mycols,
 			"datas":     mydatas,
 			"ids":       ids,
@@ -911,6 +911,174 @@ SkipDBInit:
 			"password": viper.GetString("database.password"),
 			"schema":   viper.GetString("database.schema"),
 			"host":     viper.GetString("database.host"),
+		})
+	})
+
+	router.GET("/tablelist", func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+
+		c.JSON(200, tablelist)
+	})
+
+	router.GET("/columnlist", func(c *gin.Context) {
+		tablename := c.Query("name")
+
+		var countofcols int
+		var queryCountStr string
+
+		queryCountStr = "SELECT count(*) from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		countrows, counterr := db.Query(queryCountStr)
+		checkErr(counterr)
+		countrows.Scan(&countofcols)
+
+		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		// query show tables
+		tablecols, err := db.Query(queryStr)
+		checkErr(err)
+
+		primQueryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and column_key = 'PRI' and table_name='" + tablename + "'"
+
+		// query show tables
+		primarycols, err := db.Query(primQueryStr)
+		checkErr(err)
+
+		primcols := ""
+
+		// sliceprimcols := make([]string, 5)
+
+		primcolsmap := make(map[string]string)
+
+		for primarycols.Next() {
+			var column_name string
+			var extra string
+			var column_key string
+			err = primarycols.Scan(&column_name, &extra, &column_key)
+			checkErr(err)
+			primcols = primcols + column_name + ","
+			// append(sliceprimcols, column_name)
+			primcolsmap[column_name] = ""
+		}
+
+		var mycols = make([]colmeta, 0)
+
+		for tablecols.Next() {
+			var column_name string
+			var extra string
+			var column_key string
+			var ai bool
+			var prim bool
+			err = tablecols.Scan(&column_name, &extra, &column_key)
+			checkErr(err)
+
+			fmt.Println("extra ne olaki:", extra)
+
+			if strings.HasPrefix(extra, "auto_increment") {
+				fmt.Println("ai true")
+				ai = true
+			} else {
+				fmt.Println("ai false")
+				ai = false
+			}
+
+			if strings.HasPrefix(column_key, "PRI") {
+				fmt.Println("prim true")
+				prim = true
+			} else {
+				fmt.Println("prim false")
+				prim = false
+			}
+
+			var cmeta = colmeta{ai, column_name, "", prim}
+			mycols = append(mycols, cmeta)
+		}
+
+		queryDataStr := "SELECT * from " + tablename
+		dataRows, err := db.Query(queryDataStr)
+		checkErr(err)
+
+		columns, _ := dataRows.Columns()
+		count := len(columns)
+		values := make([]interface{}, count)
+		valuePtrs := make([]interface{}, count)
+
+		var mydatas = make([]datarow, 0)
+
+		var indx int
+		// var ids string
+
+		for dataRows.Next() {
+
+			var valuesStr = make([]interface{}, 0)
+
+			for i := range columns {
+				valuePtrs[i] = &values[i]
+			}
+
+			var curid int64
+
+			dataRows.Scan(valuePtrs...)
+
+			for i, col := range columns {
+
+				var v interface{}
+
+				val := values[i]
+
+				b, ok := val.([]byte)
+
+				if ok {
+					v = string(b)
+				} else {
+					v = val
+				}
+
+				fmt.Println("valvecol degerleri", i, col, v, b, val, valuePtrs, values)
+
+				if col == "id" {
+					curids := v.(string)
+					curid, err = strconv.ParseInt(curids, 10, 64)
+					checkErr(err)
+				}
+
+				if _, ok := primcolsmap[col]; ok {
+					//do something here
+					primcolsmap[col] = v.(string)
+				}
+
+				valuesStr = append(valuesStr, v)
+			}
+
+			var drow = datarow{curid, valuesStr}
+
+			mydatas = append(mydatas, drow)
+
+			indx = indx + 1
+		}
+
+		var ids string
+
+		ids = "éé"
+
+		for k, v := range primcolsmap {
+			fmt.Println("k:", k, "v:", v)
+			ids += "éé" + k + "é" + v
+		}
+
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+
+		c.JSON(200, gin.H{
+			"title":     "Dash Db",
+			"test":      "test",
+			"tablename": tablename,
+			"primcols":  primcols,
+			"tables":    tablelist,
+			"cols":      mycols,
+			"datas":     mydatas,
+			"ids":       ids,
 		})
 	})
 
