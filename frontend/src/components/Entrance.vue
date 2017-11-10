@@ -43,7 +43,7 @@
       </div>
       <div class="col-3">
         <div style="height: 400px; padding-top: 200px; padding-left: 130px;">
-          <a href="#" class="btn btn-success">Start Your Adventure =></a>
+          <router-link :to="'overview'" class="btn btn-success">Start Your Adventure =></router-link>
         </div>
       </div>
       <div class="col-3">
