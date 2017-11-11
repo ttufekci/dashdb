@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
+	cors "github.com/itsjamie/gin-cors"
 	"github.com/theherk/viper"
 )
 
@@ -109,6 +111,17 @@ SkipDBInit:
 	// Creates a gin router with default middleware:
 	// logger and recovery (crash-free) middleware
 	router := gin.Default()
+
+	// Apply the middleware to the router (works with groups too)
+	router.Use(cors.Middleware(cors.Config{
+		Origins:         "*",
+		Methods:         "GET, PUT, POST, DELETE",
+		RequestHeaders:  "Origin, Authorization, Content-Type",
+		ExposedHeaders:  "",
+		MaxAge:          50 * time.Second,
+		Credentials:     true,
+		ValidateHeaders: false,
+	}))
 
 	router.Static("/fonts", "./fonts")
 	router.Static("/scripts", "./scripts")
@@ -1082,6 +1095,251 @@ SkipDBInit:
 		})
 	})
 
+	router.GET("/reditdata", func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+		c.Header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+
+		tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
+		id := c.Query("id")
+
+		ids := c.Query("ids")
+
+		ids = replacesc(ids)
+
+		var countofcols int
+		var queryCountStr string
+
+		queryCountStr = "SELECT count(*) from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		countrows, counterr := db.Query(queryCountStr)
+		checkErr(counterr)
+		countrows.Scan(&countofcols)
+
+		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		// query show tables
+		tablecols, err := db.Query(queryStr)
+		checkErr(err)
+
+		var mycols = make([]colmeta, 0)
+		var queryDataStr string
+
+		if id == "0" {
+			queryDataStr = "SELECT * from " + tablename + " where " + ids
+		} else {
+			queryDataStr = "SELECT * from " + tablename + " where id = " + id
+		}
+
+		fmt.Println("queryDataStr", queryDataStr)
+
+		dataRows, err := db.Query(queryDataStr)
+		checkErr(err)
+
+		columns, _ := dataRows.Columns()
+		count := len(columns)
+		values := make([]interface{}, count)
+		valuePtrs := make([]interface{}, count)
+
+		var mydatas = make([]datarow, 0)
+
+		var valuesStr = make([]interface{}, 0)
+
+		for dataRows.Next() {
+
+			for i := range columns {
+				valuePtrs[i] = &values[i]
+			}
+
+			var curid int64
+
+			dataRows.Scan(valuePtrs...)
+
+			for i, col := range columns {
+
+				var v interface{}
+
+				val := values[i]
+
+				b, ok := val.([]byte)
+
+				if ok {
+					v = string(b)
+				} else {
+					v = val
+				}
+
+				if col == "id" {
+					curids := v.(string)
+					curid, err = strconv.ParseInt(curids, 10, 64)
+					checkErr(err)
+				}
+
+				valuesStr = append(valuesStr, v)
+			}
+
+			var drow = datarow{curid, valuesStr}
+
+			mydatas = append(mydatas, drow)
+
+			break
+		}
+
+		indx := 0
+
+		for tablecols.Next() {
+			var columnName string
+			var extra string
+			var column_key string
+			var ai bool
+			var prim bool
+			err = tablecols.Scan(&columnName, &extra, &column_key)
+			checkErr(err)
+
+			if strings.HasPrefix(extra, "auto_increment") {
+				ai = true
+			} else {
+				ai = false
+			}
+
+			if strings.HasPrefix(column_key, "PRI") {
+				prim = true
+			} else {
+				prim = false
+			}
+
+			var ivalue = valuesStr[indx].(string)
+
+			var cmeta = colmeta{ai, columnName, ivalue, prim}
+			mycols = append(mycols, cmeta)
+
+			indx++
+		}
+
+		c.JSON(200, gin.H{
+			"title":     "Dash Db",
+			"test":      "test",
+			"tablename": tablename,
+			"cols":      mycols,
+			"tables":    tablelist,
+			"id":        id,
+			"ids":       ids,
+		})
+	})
+
+	// LoginJSON stuff
+	type editdata struct {
+		Name   string   `json:"name" binding:"required"`
+		Id     string   `json:"id" binding:"required"`
+		Ids    string   `json:"ids" binding:"required"`
+		Fields []string `json:"fields" binding:"required"`
+	}
+
+	router.POST("/reditdatam", func(c *gin.Context) {
+		var json editdata
+		c.BindJSON(&json)
+
+		tablename := json.Name
+		fields := json.Fields
+		id := json.Id
+		ids := json.Ids
+
+		fmt.Println("beforeids", ids)
+
+		ids = replacesc(ids)
+
+		fmt.Println("\nids:", ids, ",id:", id, "tablename:", tablename)
+
+		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		// query show tables
+		tablecols, err := db.Query(queryStr)
+		checkErr(err)
+
+		var mycols = make([]colmeta, 0)
+
+		colstr := "set "
+
+		indx := 0
+
+		fmt.Println("fields:", strings.Join(fields[:], "','"))
+
+		fmt.Println("fields[0]", fields[0])
+
+		for tablecols.Next() {
+			var column_name string
+			var extra string
+			var column_key string
+			var ai bool
+			var prim bool
+			err = tablecols.Scan(&column_name, &extra, &column_key)
+			checkErr(err)
+
+			fmt.Println("extra ne olaki:", extra)
+
+			if strings.HasPrefix(extra, "auto_increment") {
+				fmt.Println("ai true")
+				ai = true
+			} else {
+				fmt.Println("ai false")
+				ai = false
+			}
+
+			if strings.HasPrefix(column_key, "PRI") {
+				fmt.Println("prim true")
+				prim = true
+			} else {
+				fmt.Println("prim false")
+				prim = false
+			}
+
+			var cmeta = colmeta{ai, column_name, "", prim}
+			mycols = append(mycols, cmeta)
+
+			fmt.Println("indx", indx, "fields:", fields[indx])
+
+			columnValue := fields[indx]
+
+			indx++
+
+			if column_name != "id" {
+				colstr = colstr + column_name + "='" + columnValue + "',"
+			}
+		}
+
+		colstr = strings.TrimSuffix(colstr, ",")
+
+		var updateStr string
+
+		if id == "0" {
+			updateStr = "update " + tablename + " " + colstr + " " + "where " + ids
+		} else {
+			updateStr = "update " + tablename + " " + colstr + " " + "where id=" + id
+		}
+
+		fmt.Println("updatestr:", updateStr)
+
+		// update
+		stmt, err := db.Prepare(updateStr)
+		checkErr(err)
+
+		res, err := stmt.Exec()
+		checkErr(err)
+
+		affect, err := res.RowsAffected()
+		checkErr(err)
+
+		fmt.Println(affect)
+
+		c.JSON(200, gin.H{
+			"title":     "Dash Db",
+			"test":      "test",
+			"tablename": tablename,
+			"cols":      mycols,
+			"tables":    tablelist,
+		})
+	})
+
 	// By default it serves on :8080 unless a
 	// PORT environment variable was defined.
 	router.Run(":8081")
@@ -1115,186 +1373,3 @@ func testConnection(host string, user string, password string, schema string) (s
 
 	return true, ""
 }
-
-// function LoadColMetadata(tablename string) []colmeta {
-// 	queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
-
-// 	// query show tables
-// 	tablecols, err := db.Query(queryStr)
-// 	checkErr(err)
-
-// 	var mycols = make([]colmeta, 0)
-
-// 	for tablecols.Next() {
-// 		var column_name string
-// 		var extra string
-// 		var ai bool
-// 		var prim bool
-// 		var column_key string
-// 		err = tablecols.Scan(&column_name, &extra, &column_key)
-// 		checkErr(err)
-
-// 		fmt.Println("extra ne olaki:", extra)
-
-// 		if strings.HasPrefix(extra, "auto_increment") {
-// 			fmt.Println("ai true")
-// 			ai = true
-// 		} else {
-// 			fmt.Println("ai false")
-// 			ai = false
-// 		}
-
-// 		if strings.HasPrefix(column_key, "PRI") {
-// 			fmt.Println("prim true")
-// 			prim = true
-// 		} else {
-// 			fmt.Println("prim false")
-// 			prim = false
-// 		}
-
-// 		var cmeta = colmeta{ai, column_name, "", prim}
-// 		mycols = append(mycols, cmeta)
-// 	}
-
-// 	return mycols
-// }
-
-// func editGet(c *gin.Context) {
-// 	tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
-// 	id := c.Query("id")
-// 	primcols := c.Query("primcols")
-// 	ids := c.Query("ids")
-
-// 	ids = replacesc(ids)
-
-// 	fmt.Println("primcols:", primcols, ",ids:", ids, ",id:", id)
-
-// 	var countofcols int
-// 	var queryCountStr string
-
-// 	queryCountStr = "SELECT count(*) from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
-
-// 	countrows, counterr := db.Query(queryCountStr)
-// 	checkErr(counterr)
-// 	countrows.Scan(&countofcols)
-
-// 	queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
-
-// 	// query show tables
-// 	tablecols, err := db.Query(queryStr)
-// 	checkErr(err)
-
-// 	var mycols = make([]colmeta, 0)
-// 	var queryDataStr string
-
-// 	if id == "0" {
-// 		fmt.Println("0")
-// 		queryDataStr = "SELECT * from " + tablename + " where " + ids
-// 	} else {
-// 		fmt.Println("0 degil")
-// 		queryDataStr = "SELECT * from " + tablename + " where id = " + id
-// 	}
-
-// 	fmt.Println("queryDataStr", queryDataStr)
-
-// 	dataRows, err := db.Query(queryDataStr)
-// 	checkErr(err)
-
-// 	columns, _ := dataRows.Columns()
-// 	count := len(columns)
-// 	values := make([]interface{}, count)
-// 	valuePtrs := make([]interface{}, count)
-
-// 	var mydatas = make([]datarow, 0)
-
-// 	var valuesStr = make([]interface{}, 0)
-
-// 	for dataRows.Next() {
-
-// 		for i := range columns {
-// 			valuePtrs[i] = &values[i]
-// 		}
-
-// 		var curid int64
-
-// 		dataRows.Scan(valuePtrs...)
-
-// 		for i, col := range columns {
-
-// 			var v interface{}
-
-// 			val := values[i]
-
-// 			b, ok := val.([]byte)
-
-// 			if ok {
-// 				v = string(b)
-// 			} else {
-// 				v = val
-// 			}
-
-// 			fmt.Println("valvecol degerleri", i, col, v, b, val, valuePtrs, values)
-
-// 			if col == "id" {
-// 				curids := v.(string)
-// 				curid, err = strconv.ParseInt(curids, 10, 64)
-// 				checkErr(err)
-// 			}
-
-// 			valuesStr = append(valuesStr, v)
-// 		}
-
-// 		var drow = datarow{curid, valuesStr}
-
-// 		mydatas = append(mydatas, drow)
-
-// 		break
-// 	}
-
-// 	indx := 0
-
-// 	for tablecols.Next() {
-// 		var columnName string
-// 		var extra string
-// 		var column_key string
-// 		var ai bool
-// 		var prim bool
-// 		err = tablecols.Scan(&columnName, &extra, &column_key)
-// 		checkErr(err)
-
-// 		fmt.Println("extra ne olaki:", extra)
-
-// 		if strings.HasPrefix(extra, "auto_increment") {
-// 			fmt.Println("ai true")
-// 			ai = true
-// 		} else {
-// 			fmt.Println("ai false")
-// 			ai = false
-// 		}
-
-// 		if strings.HasPrefix(column_key, "PRI") {
-// 			fmt.Println("prim true")
-// 			prim = true
-// 		} else {
-// 			fmt.Println("prim false")
-// 			prim = false
-// 		}
-
-// 		var ivalue = valuesStr[indx].(string)
-
-// 		var cmeta = colmeta{ai, columnName, ivalue, prim}
-// 		mycols = append(mycols, cmeta)
-
-// 		indx++
-// 	}
-
-// 	c.HTML(http.StatusOK, "editdata.tmpl", gin.H{
-// 		"title":     "Dash Db",
-// 		"test":      "test",
-// 		"tablename": tablename,
-// 		"cols":      mycols,
-// 		"tables":    myslice,
-// 		"id":        id,
-// 		"ids":       ids,
-// 	})
-// }

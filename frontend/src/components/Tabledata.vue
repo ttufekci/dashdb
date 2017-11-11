@@ -15,15 +15,19 @@
                 <th v-for="(item, index) in columnlist" :key="item.Name">
                   {{item.Name}}
                 </th>
-                <th>Edit</th>
-                <th>Delete</th>                
+                <th></th>
+                <th></th>                
               </tr>
           </thead>
           <tbody>
             <tr v-for="(item, index) in rows" :key="index">
               <td v-for="(item, index) in item.S" :key="index">{{item}}</td>
-              <td></td>
-              <td></td>
+              <td>
+                  <router-link :to="{name:'editdata', params: {name:  tablename, primcols: primcols, id: item.Id, ids: ids}}" class="btn btn-secondary btn-sm">Edit</router-link>
+              </td>
+              <td>
+                  <button type="button" class="btn btn-danger btn-sm">Delete</button>                 
+              </td>
             </tr>
           </tbody>
         </table>
@@ -48,11 +52,16 @@ export default {
       schema: 'dashdb',
       tablelist: [],
       columnlist: [],
-      rows: []
+      rows: [],
+      tablename: '',
+      primcols: '',
+      ids: '',
+      id: ''
     }
   },
   mounted () {
     // this.$router.push('overview')
+    this.tablename = this.$route.params.name
     this.readColumnList(this.$route.params.name)
   },
   methods: {
@@ -62,6 +71,9 @@ export default {
         // JSON responses are automatically parsed.
         this.columnlist = response.data.cols
         this.rows = response.data.datas
+        this.primcols = response.data.primcols
+        this.ids = response.data.ids
+        this.id = response.data.id
       })
       .catch(e => {
         console.log(e)
