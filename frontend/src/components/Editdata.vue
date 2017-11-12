@@ -4,7 +4,7 @@
     <section class="row placeholders">
       <div class="table-responsive p-4">
 
-        <button class="btn btn-success" type="submit">Return</button>
+        <button class="btn btn-success" type="submit" @click="goBack">Return</button>
 
         <br/>
         <br/>
@@ -113,6 +113,9 @@ export default {
         console.log(e)
         this.errors.push(e)
       })
+    },
+    goBack () {
+      this.$router.go(-1)
     }
   },
   watch: {

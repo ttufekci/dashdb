@@ -61,13 +61,14 @@ export default {
   },
   mounted () {
     // this.$router.push('overview')
-    this.tablename = this.$route.params.name
     this.readColumnList(this.$route.params.name)
   },
   methods: {
     readColumnList (tablename) {
+      this.tablename = tablename
       axios.get('http://localhost:8081/columnlist?name=' + tablename)
       .then(response => {
+        console.log('columnlist loaded')
         // JSON responses are automatically parsed.
         this.columnlist = response.data.cols
         this.rows = response.data.datas

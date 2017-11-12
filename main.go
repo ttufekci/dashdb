@@ -914,7 +914,7 @@ SkipDBInit:
 		err := viper.ReadInConfig()   // Find and read the config file
 
 		if err != nil { // Handle errors reading the config file
-			panic(fmt.Errorf("Fatal error config file: %s \n", err))
+			panic(fmt.Errorf("Fatal error config file: %s", err))
 		}
 
 		c.JSON(200, gin.H{
@@ -944,6 +944,8 @@ SkipDBInit:
 
 		countrows, counterr := db.Query(queryCountStr)
 		checkErr(counterr)
+		defer countrows.Close()
+
 		countrows.Scan(&countofcols)
 
 		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
@@ -951,16 +953,16 @@ SkipDBInit:
 		// query show tables
 		tablecols, err := db.Query(queryStr)
 		checkErr(err)
+		defer tablecols.Close()
 
 		primQueryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and column_key = 'PRI' and table_name='" + tablename + "'"
 
 		// query show tables
 		primarycols, err := db.Query(primQueryStr)
 		checkErr(err)
+		defer primarycols.Close()
 
 		primcols := ""
-
-		// sliceprimcols := make([]string, 5)
 
 		primcolsmap := make(map[string]string)
 
@@ -971,7 +973,6 @@ SkipDBInit:
 			err = primarycols.Scan(&column_name, &extra, &column_key)
 			checkErr(err)
 			primcols = primcols + column_name + ","
-			// append(sliceprimcols, column_name)
 			primcolsmap[column_name] = ""
 		}
 
@@ -986,21 +987,15 @@ SkipDBInit:
 			err = tablecols.Scan(&column_name, &extra, &column_key)
 			checkErr(err)
 
-			fmt.Println("extra ne olaki:", extra)
-
 			if strings.HasPrefix(extra, "auto_increment") {
-				fmt.Println("ai true")
 				ai = true
 			} else {
-				fmt.Println("ai false")
 				ai = false
 			}
 
 			if strings.HasPrefix(column_key, "PRI") {
-				fmt.Println("prim true")
 				prim = true
 			} else {
-				fmt.Println("prim false")
 				prim = false
 			}
 
@@ -1011,6 +1006,7 @@ SkipDBInit:
 		queryDataStr := "SELECT * from " + tablename
 		dataRows, err := db.Query(queryDataStr)
 		checkErr(err)
+		defer dataRows.Close()
 
 		columns, _ := dataRows.Columns()
 		count := len(columns)
@@ -1020,7 +1016,6 @@ SkipDBInit:
 		var mydatas = make([]datarow, 0)
 
 		var indx int
-		// var ids string
 
 		for dataRows.Next() {
 
@@ -1047,8 +1042,6 @@ SkipDBInit:
 				} else {
 					v = val
 				}
-
-				fmt.Println("valvecol degerleri", i, col, v, b, val, valuePtrs, values)
 
 				if col == "id" {
 					curids := v.(string)
@@ -1080,9 +1073,6 @@ SkipDBInit:
 			ids += "éé" + k + "é" + v
 		}
 
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
-
 		c.JSON(200, gin.H{
 			"title":     "Dash Db",
 			"test":      "test",
@@ -1096,9 +1086,6 @@ SkipDBInit:
 	})
 
 	router.GET("/reditdata", func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
-		c.Header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
 
 		tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
 		id := c.Query("id")
@@ -1114,6 +1101,8 @@ SkipDBInit:
 
 		countrows, counterr := db.Query(queryCountStr)
 		checkErr(counterr)
+		defer countrows.Close()
+
 		countrows.Scan(&countofcols)
 
 		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
@@ -1121,6 +1110,7 @@ SkipDBInit:
 		// query show tables
 		tablecols, err := db.Query(queryStr)
 		checkErr(err)
+		defer tablecols.Close()
 
 		var mycols = make([]colmeta, 0)
 		var queryDataStr string
@@ -1135,6 +1125,7 @@ SkipDBInit:
 
 		dataRows, err := db.Query(queryDataStr)
 		checkErr(err)
+		defer dataRows.Close()
 
 		columns, _ := dataRows.Columns()
 		count := len(columns)
@@ -1255,6 +1246,7 @@ SkipDBInit:
 		// query show tables
 		tablecols, err := db.Query(queryStr)
 		checkErr(err)
+		defer tablecols.Close()
 
 		var mycols = make([]colmeta, 0)
 
@@ -1275,21 +1267,15 @@ SkipDBInit:
 			err = tablecols.Scan(&column_name, &extra, &column_key)
 			checkErr(err)
 
-			fmt.Println("extra ne olaki:", extra)
-
 			if strings.HasPrefix(extra, "auto_increment") {
-				fmt.Println("ai true")
 				ai = true
 			} else {
-				fmt.Println("ai false")
 				ai = false
 			}
 
 			if strings.HasPrefix(column_key, "PRI") {
-				fmt.Println("prim true")
 				prim = true
 			} else {
-				fmt.Println("prim false")
 				prim = false
 			}
 
@@ -1322,6 +1308,7 @@ SkipDBInit:
 		// update
 		stmt, err := db.Prepare(updateStr)
 		checkErr(err)
+		defer stmt.Close()
 
 		res, err := stmt.Exec()
 		checkErr(err)
