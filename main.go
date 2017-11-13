@@ -48,8 +48,9 @@ func checkErr(err error) {
 }
 
 type datarow struct {
-	Id int64
-	S  []interface{}
+	Id  int64
+	S   []interface{}
+	Ids string
 }
 
 type colmeta struct {
@@ -235,7 +236,7 @@ SkipDBInit:
 				valuesStr = append(valuesStr, v)
 			}
 
-			var drow = datarow{curid, valuesStr}
+			var drow = datarow{curid, valuesStr, ""}
 
 			mydatas = append(mydatas, drow)
 
@@ -617,7 +618,7 @@ SkipDBInit:
 				valuesStr = append(valuesStr, v)
 			}
 
-			var drow = datarow{curid, valuesStr}
+			var drow = datarow{curid, valuesStr, ""}
 
 			mydatas = append(mydatas, drow)
 
@@ -802,7 +803,7 @@ SkipDBInit:
 				valuesStr = append(valuesStr, v)
 			}
 
-			var drow = datarow{curid, valuesStr}
+			var drow = datarow{curid, valuesStr, ""}
 
 			mydatas = append(mydatas, drow)
 
@@ -1026,6 +1027,9 @@ SkipDBInit:
 			}
 
 			var curid int64
+			var rids string
+
+			rids = "éé"
 
 			dataRows.Scan(valuePtrs...)
 
@@ -1052,12 +1056,13 @@ SkipDBInit:
 				if _, ok := primcolsmap[col]; ok {
 					//do something here
 					primcolsmap[col] = v.(string)
+					rids += "éé" + col + "é" + v.(string)
 				}
 
 				valuesStr = append(valuesStr, v)
 			}
 
-			var drow = datarow{curid, valuesStr}
+			var drow = datarow{curid, valuesStr, rids}
 
 			mydatas = append(mydatas, drow)
 
@@ -1169,7 +1174,7 @@ SkipDBInit:
 				valuesStr = append(valuesStr, v)
 			}
 
-			var drow = datarow{curid, valuesStr}
+			var drow = datarow{curid, valuesStr, ""}
 
 			mydatas = append(mydatas, drow)
 

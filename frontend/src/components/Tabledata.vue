@@ -21,9 +21,9 @@
           </thead>
           <tbody>
             <tr v-for="(item, index) in rows" :key="index">
-              <td v-for="(item, index) in item.S" :key="index">{{item}}</td>
+              <td v-for="(itemdetail, index) in item.S" :key="index">{{itemdetail}}</td>
               <td>
-                  <router-link :to="{name:'editdata', params: {name:  tablename, primcols: primcols, id: item.Id, ids: ids}}" class="btn btn-secondary btn-sm">Edit</router-link>
+                  <router-link :to="{name:'editdata', params: {name:  tablename, primcols: primcols, id: item.Id, ids: item.Ids}}" class="btn btn-secondary btn-sm">Edit</router-link>
               </td>
               <td>
                   <button type="button" class="btn btn-danger btn-sm">Delete</button>                 
