@@ -21,6 +21,18 @@ type config struct {
 	password string
 }
 
+type editdata struct {
+	Name   string   `json:"name" binding:"required"`
+	Id     string   `json:"id" binding:"required"`
+	Ids    string   `json:"ids" binding:"required"`
+	Fields []string `json:"fields" binding:"required"`
+}
+
+type adddata struct {
+	Name   string   `json:"name" binding:"required"`
+	Fields []string `json:"fields" binding:"required"`
+}
+
 type Table struct {
 	Name string `json:"name"`
 }
@@ -1223,13 +1235,147 @@ SkipDBInit:
 		})
 	})
 
-	// LoginJSON stuff
-	type editdata struct {
-		Name   string   `json:"name" binding:"required"`
-		Id     string   `json:"id" binding:"required"`
-		Ids    string   `json:"ids" binding:"required"`
-		Fields []string `json:"fields" binding:"required"`
-	}
+	router.GET("/adddata", func(c *gin.Context) {
+		tablename := c.Query("name") // shortcut for c.Request.URL.Query().Get("lastname")
+
+		var countofcols int
+		var queryCountStr string
+
+		queryCountStr = "SELECT count(*) from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		countrows, counterr := db.Query(queryCountStr)
+		checkErr(counterr)
+		defer countrows.Close()
+
+		countrows.Scan(&countofcols)
+
+		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		// query show tables
+		tablecols, err := db.Query(queryStr)
+		checkErr(err)
+		defer tablecols.Close()
+
+		var mycols = make([]colmeta, 0)
+
+		indx := 0
+
+		for tablecols.Next() {
+			var columnName string
+			var extra string
+			var column_key string
+			var ai bool
+			var prim bool
+			err = tablecols.Scan(&columnName, &extra, &column_key)
+			checkErr(err)
+
+			if strings.HasPrefix(extra, "auto_increment") {
+				ai = true
+			} else {
+				ai = false
+			}
+
+			if strings.HasPrefix(column_key, "PRI") {
+				prim = true
+			} else {
+				prim = false
+			}
+
+			var cmeta = colmeta{ai, columnName, "", prim}
+			mycols = append(mycols, cmeta)
+
+			indx++
+		}
+
+		c.JSON(200, gin.H{
+			"title":     "Dash Db",
+			"test":      "test",
+			"tablename": tablename,
+			"cols":      mycols,
+			"tables":    tablelist,
+		})
+	})
+
+	router.POST("/adddata", func(c *gin.Context) {
+		var json adddata
+		c.BindJSON(&json)
+
+		tablename := json.Name
+		fields := json.Fields
+
+		queryStr := "SELECT column_name, extra, column_key from information_schema.columns where table_schema='dashdb' and table_name='" + tablename + "'"
+
+		// query show tables
+		tablecols, err := db.Query(queryStr)
+		checkErr(err)
+
+		var mycols = make([]colmeta, 0)
+
+		colstr := "("
+
+		for tablecols.Next() {
+			var column_name string
+			var extra string
+			var ai bool
+			var prim bool
+			var column_key string
+			err = tablecols.Scan(&column_name, &extra, &column_key)
+			checkErr(err)
+
+			fmt.Println("extra ne olaki:", extra)
+
+			if strings.HasPrefix(extra, "auto_increment") {
+				fmt.Println("ai true")
+				ai = true
+			} else {
+				fmt.Println("ai false")
+				ai = false
+			}
+
+			if strings.HasPrefix(extra, "PRI") {
+				fmt.Println("prim true")
+				prim = true
+			} else {
+				fmt.Println("prim false")
+				prim = false
+			}
+
+			//fmt.Print(column_name)
+			//fmt.Print(" ")
+			var cmeta = colmeta{ai, column_name, "", prim}
+			mycols = append(mycols, cmeta)
+
+			if column_name != "id" {
+				colstr = colstr + column_name + ","
+			}
+		}
+
+		colstr = strings.TrimSuffix(colstr, ",") + ")"
+
+		insertStr := "insert into " + tablename + " " + colstr + " values ('" + strings.Join(fields[:], "','") + "')"
+
+		fmt.Println("insertStr: " + insertStr)
+
+		// insert
+		stmt, err := db.Prepare(insertStr)
+		checkErr(err)
+		// defer stmt.Close()
+
+		res, err := stmt.Exec()
+		checkErr(err)
+
+		newid, err := res.LastInsertId()
+		checkErr(err)
+
+		c.JSON(200, gin.H{
+			"title":     "Dash Db",
+			"test":      "test",
+			"tablename": tablename,
+			"cols":      mycols,
+			"tables":    tablelist,
+			"newid":     newid,
+		})
+	})
 
 	router.POST("/reditdatam", func(c *gin.Context) {
 		var json editdata

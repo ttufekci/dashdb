@@ -4,7 +4,7 @@
     <section class="row placeholders">
       <div class="table-responsive p-4">
 
-        <a href="#" class="btn btn-primary">Add</a>
+        <router-link :to="{name:'adddata', params: {name:  tablename}}" class="btn btn-primary">Add</router-link>        
 
         <br/>
         <br/>
@@ -53,14 +53,13 @@ export default {
       tablelist: [],
       columnlist: [],
       rows: [],
-      tablename: '',
+      tablename: 'test',
       primcols: '',
       ids: '',
       id: ''
     }
   },
   mounted () {
-    // this.$router.push('overview')
     this.readColumnList(this.$route.params.name)
   },
   methods: {
