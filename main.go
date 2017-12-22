@@ -28,6 +28,12 @@ type editdata struct {
 	Fields []string `json:"fields" binding:"required"`
 }
 
+type deletedata struct {
+	Name string `json:"name" binding:"required"`
+	Id   string `json:"id" binding:"required"`
+	Ids  string `json:"ids" binding:"required"`
+}
+
 type adddata struct {
 	Name   string   `json:"name" binding:"required"`
 	Fields []string `json:"fields" binding:"required"`
@@ -1374,6 +1380,50 @@ SkipDBInit:
 			"cols":      mycols,
 			"tables":    tablelist,
 			"newid":     newid,
+		})
+	})
+
+	router.POST("/deleterowdata", func(c *gin.Context) {
+		var json deletedata
+		c.BindJSON(&json)
+
+		tablename := json.Name
+		id := json.Id
+		ids := json.Ids
+
+		fmt.Println("beforeids", ids)
+
+		ids = replacesc(ids)
+
+		fmt.Println("\nids:", ids, ",id:", id, "tablename:", tablename)
+
+		var deleteStr string
+
+		if id == "0" {
+			deleteStr = "delete from " + tablename + " " + "where " + ids
+		} else {
+			deleteStr = "delete from " + tablename + " " + "where id=" + id
+		}
+
+		fmt.Println("deleteStr:", deleteStr)
+
+		// update
+		stmt, err := db.Prepare(deleteStr)
+		checkErr(err)
+		defer stmt.Close()
+
+		res, err := stmt.Exec()
+		checkErr(err)
+
+		affect, err := res.RowsAffected()
+		checkErr(err)
+
+		fmt.Println(affect)
+
+		c.JSON(200, gin.H{
+			"title":     "Dash Db",
+			"test":      "test",
+			"tablename": tablename,
 		})
 	})
 

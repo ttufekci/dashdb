@@ -69,7 +69,6 @@ export default {
     }
   },
   mounted () {
-    // this.$router.push('overview')
     this.readEditData(this.$route.params.name, this.$route.params.primcols, this.$route.params.ids, this.$route.params.id)
   },
   methods: {

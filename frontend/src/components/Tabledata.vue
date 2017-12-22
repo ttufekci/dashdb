@@ -26,7 +26,7 @@
                   <router-link :to="{name:'editdata', params: {name:  tablename, primcols: primcols, id: item.Id, ids: item.Ids}}" class="btn btn-secondary btn-sm">Edit</router-link>
               </td>
               <td>
-                  <button type="button" class="btn btn-danger btn-sm">Delete</button>                 
+                  <button type="button" class="btn btn-danger btn-sm" @click="deleteRow(primcols, item.Id, item.Ids)">Delete</button>                 
               </td>
             </tr>
           </tbody>
@@ -63,6 +63,32 @@ export default {
     this.readColumnList(this.$route.params.name)
   },
   methods: {
+    deleteRow (primcols, id, ids) {
+      console.log(primcols, 'id:', id, ',ids:', ids)
+      var txt
+      var r = confirm('record will be deleted!')
+      if (r === true) {
+        txt = 'Record will be deleted!'
+        axios.post('http://localhost:8081/deleterowdata', {
+          'name': this.tablename,
+          'primcols': this.primcols,
+          'ids': ids,
+          'id': String(id),
+          'fields': 'test'
+        })
+        .then(response => {
+          this.saveMessage = 'Deleted Successfully'
+          this.readColumnList(this.$route.params.name)
+        })
+        .catch(e => {
+          console.log(e)
+          this.errors.push(e)
+        })
+      } else {
+        txt = 'Cancel!'
+      }
+      console.log(txt)
+    },
     readColumnList (tablename) {
       this.tablename = tablename
       axios.get('http://localhost:8081/columnlist?name=' + tablename)
